@@ -15,7 +15,11 @@ import (
 )
 
 type ChessGame struct {
-	ID          int    `bson: "id"`
+	//made an unsigned int because never needing this value to be negative.
+	//Also there is currently a process running somewhere that is constantly generating new IDs,
+	//so changing from int to uint64 is a stopgap measure to prevent the need to constantly clear the
+	//database in order to allow games to be created at any moment
+	ID          uint64 `bson: "id"`
 	PGN         string `bson: "pgn"`
 	CurrentTurn string `bson: "currentTurn"`
 	IsGameLive  bool   `bson: "isGameLive"`
@@ -109,7 +113,7 @@ func createNewGame(c *gin.Context) {
 	}
 }
 
-func generateNewGameRecord() int {
+func generateNewGameRecord() uint64 {
 
 	//  mongoDB connection when opened in Main kept getting cut off by the time this code was reached,
 	// need to either open a new connection everytime (inefficient but simple)
@@ -121,7 +125,7 @@ func generateNewGameRecord() int {
 	singleResult := collection.FindOne(context.TODO(), filter, sort)
 
 	//todo DEBUG: this method is now only churning out the number 10
-	var newId int
+	var newId uint64
 	if singleResult.Err() != nil {
 		log.Println("No Results Found, attempting error comparison")
 		//consider consolidating response code handling for SingleResult object types (shared between newGame and getGame)
@@ -130,7 +134,7 @@ func generateNewGameRecord() int {
 			newId = 1
 		} else {
 			log.Println(singleResult.Err())
-			newId = -1
+			newId = 0
 		}
 	} else {
 		log.Println(singleResult)
@@ -139,13 +143,13 @@ func generateNewGameRecord() int {
 		err := singleResult.Decode(&BSONData)
 		if err != nil {
 			log.Println(err)
-			return -1
+			return 0
 		}
 
-		log.Println("id to increment: " + strconv.Itoa(BSONData.ID))
+		log.Println("id to increment: " + strconv.FormatUint(BSONData.ID, 10))
 		newId = BSONData.ID
 		newId++
-		log.Println("value after incremen " + strconv.Itoa(newId))
+		log.Println("value after increment " + strconv.FormatUint(BSONData.ID, 10))
 
 	}
 	return newId
@@ -163,7 +167,7 @@ func enterPlayerTurn(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, err)
 		panic(err)
 	}
-	log.Println("updating board w/ ID: " + strconv.Itoa(turnToEnter.ID) + ", new PGN: " + turnToEnter.PGN)
+	log.Println("updating board w/ ID: " + strconv.FormatUint(turnToEnter.ID, 10) + ", new PGN: " + turnToEnter.PGN)
 
 	filter := bson.D{{Key: "id", Value: turnToEnter.ID}}
 	update := bson.D{{Key: "$set", Value: turnToEnter}}
