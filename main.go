@@ -57,6 +57,10 @@ func main() {
 
 }
 
+// known bug: Can't leave connection to mongoDB open, because it will quickly go and exceed the number of available connections
+// however, can't do any ip traffic restrictions on the EC2 instance or on the mongoDB cluseter, because of use of Heroku to
+// run code as a public facing site to avoid SSL requirements (which cannot be circumvented due to domain request still pending for AWS Amplify instance)
+// current workaround is to allow traffic from any IP on the mongoDB cluster, and just close connection each time.
 func connectToMongoDB() *mongo.Client {
 	//code sample grabbed from MongoDB setup page
 
@@ -115,16 +119,11 @@ func createNewGame(c *gin.Context) {
 
 func generateNewGameRecord() uint64 {
 
-	//  mongoDB connection when opened in Main kept getting cut off by the time this code was reached,
-	// need to either open a new connection everytime (inefficient but simple)
-	// or figure out a way to keep connection open
-
 	sort := options.FindOne().SetSort(bson.D{{Key: "id", Value: -1}})
 	filter := bson.D{}
 
 	singleResult := collection.FindOne(context.TODO(), filter, sort)
 
-	//todo DEBUG: this method is now only churning out the number 10
 	var newId uint64
 	if singleResult.Err() != nil {
 		log.Println("No Results Found, attempting error comparison")
@@ -157,7 +156,6 @@ func generateNewGameRecord() uint64 {
 
 // takes an id, and the pgn of the board resulting from their turn,
 // and saves the record
-
 func enterPlayerTurn(c *gin.Context) {
 	log.Println("Attempting to save turn in database")
 	log.Println(c.Request.Body)
@@ -175,7 +173,11 @@ func enterPlayerTurn(c *gin.Context) {
 	result, err := collection.UpdateOne(context.TODO(), filter, update)
 	log.Println("update attempt complete")
 	client.Disconnect(context.TODO())
+	//todo: need to look at diffretn error types provided by updateOne(), 404 should be returned if the psoted game's ID cannot be found
 	if err != nil {
+		//known bug: likely because of opening/closing the mongoDB connection so often, sometimes when trying to operate on a
+		//particular game, an error occurs due to "use of closed network connection"
+
 		c.JSON(http.StatusInternalServerError, err)
 		panic(err)
 	} else {
@@ -186,7 +188,6 @@ func enterPlayerTurn(c *gin.Context) {
 
 // returns PGN tied to id
 func retrieveGameState(c *gin.Context) {
-	client = connectToMongoDB()
 	gameId, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, err)
@@ -196,14 +197,12 @@ func retrieveGameState(c *gin.Context) {
 	fmt.Printf("gameId: %T\n", gameId)
 	log.Println("Attempting board retrieval")
 	filter := bson.D{{Key: "id", Value: gameId}}
+	client = connectToMongoDB()
 	singleResult := collection.FindOne(context.TODO(), filter)
 	client.Disconnect(context.TODO())
 	if singleResult.Err() != nil {
-		//todo: resolve bug
-		//bug is that result alwasy comes back as not found
 		log.Println(singleResult.Err())
-		c.JSON(http.StatusNotFound, "Game Not Found")
-		//todo: different error codes based on singleResult.Err() value
+		c.JSON(http.StatusConflict, "Mongo likely experiecned issue with maintaining connections")
 	} else {
 		var BSONData *ChessGame
 		BSONData = new(ChessGame)
@@ -230,20 +229,22 @@ func quitGame(c *gin.Context) {
 }
 
 func handleGameEnd(c *gin.Context, isQuit bool) {
-	client = connectToMongoDB()
-	gameId, err1 := strconv.Atoi(c.Param("id"))
+	gameId, err1 := strconv.ParseUint(c.Param("id"), 10, 64)
 	endingPlayer := c.Param("endingPlayer")
 	var endGame *EndGameResponse = new(EndGameResponse)
 
 	if err1 != nil {
 		endGame.Success = false
 		endGame.FailureMessage = err1.Error()
-		c.JSON(http.StatusInternalServerError, endGame)
+		c.JSON(http.StatusBadRequest, endGame)
 		panic(err1)
 	}
 
 	log.Println("attempting deletion of game record")
 	filter := bson.D{{Key: "id", Value: gameId}}
+	//todo: look into deleteOne documentation, if a game that does not exist is asked to be deleted, that is
+	//an appropriate use case for a 404 response code
+	client = connectToMongoDB()
 	result, err := collection.DeleteOne(context.TODO(), filter)
 	log.Println(result)
 	log.Println("Delete operation finished")
