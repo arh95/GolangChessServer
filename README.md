@@ -53,6 +53,9 @@ type EndGameResponse struct {<br />
 	&nbsp;&nbsp;&nbsp;&nbsp;FailureMessage string `json: "failureMessage"`<br />
 }<br />
 
+**Known Bugs**
+<br/> Due to the setup of a public app using Heroku, there is not a static subset of IP addresses that can be provided to mongoDB or to the EC2 webserver to block out traffic. see comment above  main.go#connectToMongoDB for more context
+
 
 
 Compiled on amazon EC2 server using go version 1.20 (despite the commit message on most of the server code)
