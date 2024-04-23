@@ -24,12 +24,6 @@ POST
     - 500 status on other
 
 DELETE
-  - /end/{id}/{endingPlayerColor}
-    - returns EndGameResponse object  
-    - finds the game specified by the ID, removes the document from the mongoDB collection, creates a response indicating that the game ended naturally (via win/lose/draw) and returns it
-    - 200 status on success
-    - 400 status on bad request
-    - 500 status on other
  - /quit/{id}/{endingPlayerColor}
     - returns EndGameResponse object  
     - finds the game specified by the ID, removes the document from the mongoDB collection, creates a response indicating that the game ended by request from one of the players, and returns it
@@ -47,14 +41,10 @@ type ChessGame struct {<br />
 }
 
 type EndGameResponse struct {<br />
-	&nbsp;&nbsp;&nbsp;&nbsp;Success        bool   `json: "success"`<br />
-	&nbsp;&nbsp;&nbsp;&nbsp;IsQuit         bool   `json:"isQuit "`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Success        bool   `json: "success"`<br />x
 	&nbsp;&nbsp;&nbsp;&nbsp;EndingPlayer   string `json: "endingPlayer"`<br />
 	&nbsp;&nbsp;&nbsp;&nbsp;FailureMessage string `json: "failureMessage"`<br />
 }<br />
-
-**Known Bugs**
-<br/> Due to the setup of a public app using Heroku, there is not a static subset of IP addresses that can be provided to mongoDB or to the EC2 webserver to block out traffic. see comment above  main.go#connectToMongoDB for more context
 
 
 
