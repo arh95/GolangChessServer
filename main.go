@@ -52,9 +52,14 @@ func main() {
 	router.DELETE("/end/:id/:endingPlayer", endGame)
 	router.DELETE("/quit/:id/:endingPlayer", quitGame)
 	router.GET("/live/:id", retrieveGameState)
+	router.GET("/", ping)
 
 	router.Run()
 
+}
+
+func ping(c *gin.Context) {
+	c.JSON(http.StatusOK, "ping")
 }
 
 func connectToMongoDB() *mongo.Client {
