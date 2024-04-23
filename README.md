@@ -1,6 +1,6 @@
 This is the backend server for the Domain challenge written in GOLANG and using the GIN framework for the REST API.
 
-API Operations
+API Operations <br />
 GET
   - /new 
     -  creates a new game with an incremental ID (larger than the last ID in the mongoDB collection), and returns the data
@@ -38,20 +38,20 @@ DELETE
     - 500 status on other
   
 
-Data Types
-type ChessGame struct {
-	ID          uint64 `bson: "id"`
-	PGN         string `bson: "pgn"`
-	CurrentTurn string `bson: "currentTurn"`
-	IsGameLive  bool   `bson: "isGameLive"`
+Data Types <br />
+type ChessGame struct {<br />
+	ID          uint64 `bson: "id"`<br />
+	PGN         string `bson: "pgn"`<br />
+	CurrentTurn string `bson: "currentTurn"`<br />
+	IsGameLive  bool   `bson: "isGameLive"`<br />
 }
 
-type EndGameResponse struct {
-	Success        bool   `json: "success"`
-	IsQuit         bool   `json:"isQuit "`
-	EndingPlayer   string `json: "endingPlayer"`
-	FailureMessage string `json: "failureMessage"`
-}
+type EndGameResponse struct {<br />
+	Success        bool   `json: "success"`<br />
+	IsQuit         bool   `json:"isQuit "`<br />
+	EndingPlayer   string `json: "endingPlayer"`<br />
+	FailureMessage string `json: "failureMessage"`<br />
+}<br />
 
 
 
