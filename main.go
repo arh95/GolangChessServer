@@ -15,19 +15,16 @@ import (
 )
 
 type ChessGame struct {
-	//made an unsigned int because never needing this value to be negative.
-	//Also there is currently a process running somewhere that is constantly generating new IDs,
-	//so changing from int to uint64 is a stopgap measure to prevent the need to constantly clear the
-	//database in order to allow games to be created at any moment
 	ID          uint64 `bson: "id"`
 	PGN         string `bson: "pgn"`
 	CurrentTurn string `bson: "currentTurn"`
 	IsGameLive  bool   `bson: "isGameLive"`
 }
 
-type EndGameResponse struct {
+// decided to implement only deleting games that were aborted by users
+// potential future feature is viewing history of wins/losses
+type QuitGameResponse struct {
 	Success        bool   `json: "success"`
-	IsQuit         bool   `json:"isQuit "`
 	EndingPlayer   string `json: "endingPlayer"`
 	FailureMessage string `json: "failureMessage"`
 }
@@ -42,25 +39,20 @@ var collection *mongo.Collection
 //sourcing file structure from https://tutorialedge.net/golang/creating-restful-api-with-golang/
 
 func main() {
+	client = connectToMongoDB()
 	router := gin.Default()
 	router.Use(corsMiddleware())
 	//all endpoints tested using postman before attempmting programmatic connection with application front end
 
-	//todo: write openAPI specification for documentation before submitting
 	router.GET("/new", createNewGame)
 	router.POST("/live/:id", enterPlayerTurn)
-	router.DELETE("/end/:id/:endingPlayer", endGame)
-	router.DELETE("/quit/:id/:endingPlayer", quitGame)
+	router.DELETE("/quit/:id/:endingPlayer", handleGameEnd)
 	router.GET("/live/:id", retrieveGameState)
 
 	router.Run()
 
 }
 
-// known bug: Can't leave connection to mongoDB open, because it will quickly go and exceed the number of available connections
-// however, can't do any ip traffic restrictions on the EC2 instance or on the mongoDB cluseter, because of use of Heroku to
-// run code as a public facing site to avoid SSL requirements (which cannot be circumvented due to domain request still pending for AWS Amplify instance)
-// current workaround is to allow traffic from any IP on the mongoDB cluster, and just close connection each time.
 func connectToMongoDB() *mongo.Client {
 	//code sample grabbed from MongoDB setup page
 
@@ -90,7 +82,6 @@ func connectToMongoDB() *mongo.Client {
 // returns id
 func createNewGame(c *gin.Context) {
 
-	client = connectToMongoDB()
 	newGame := new(ChessGame)
 	newId := generateNewGameRecord()
 	if newId > 0 {
@@ -99,7 +90,6 @@ func createNewGame(c *gin.Context) {
 		newGame.IsGameLive = true
 		result, err := collection.InsertOne(context.TODO(), newGame)
 		log.Println("result")
-		client.Disconnect(context.TODO())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, err)
 			panic(err)
@@ -112,7 +102,6 @@ func createNewGame(c *gin.Context) {
 		}
 
 	} else {
-		client.Disconnect(context.TODO())
 		c.JSON(http.StatusInternalServerError, "unable to generate incremental ID for new game")
 	}
 }
@@ -127,7 +116,7 @@ func generateNewGameRecord() uint64 {
 	var newId uint64
 	if singleResult.Err() != nil {
 		log.Println("No Results Found, attempting error comparison")
-		//consider consolidating response code handling for SingleResult object types (shared between newGame and getGame)
+		//todo: consolidate response code handling for SingleResult object types (shared between newGame and getGame)
 		if errors.Is(singleResult.Err(), mongo.ErrNoDocuments) {
 			log.Println("Collection was empty, starting IDs at initial value (1)")
 			newId = 1
@@ -169,15 +158,10 @@ func enterPlayerTurn(c *gin.Context) {
 
 	filter := bson.D{{Key: "id", Value: turnToEnter.ID}}
 	update := bson.D{{Key: "$set", Value: turnToEnter}}
-	client = connectToMongoDB()
 	result, err := collection.UpdateOne(context.TODO(), filter, update)
 	log.Println("update attempt complete")
-	client.Disconnect(context.TODO())
 	//todo: need to look at diffretn error types provided by updateOne(), 404 should be returned if the psoted game's ID cannot be found
 	if err != nil {
-		//known bug: likely because of opening/closing the mongoDB connection so often, sometimes when trying to operate on a
-		//particular game, an error occurs due to "use of closed network connection"
-
 		c.JSON(http.StatusInternalServerError, err)
 		panic(err)
 	} else {
@@ -197,12 +181,10 @@ func retrieveGameState(c *gin.Context) {
 	fmt.Printf("gameId: %T\n", gameId)
 	log.Println("Attempting board retrieval")
 	filter := bson.D{{Key: "id", Value: gameId}}
-	client = connectToMongoDB()
 	singleResult := collection.FindOne(context.TODO(), filter)
-	client.Disconnect(context.TODO())
 	if singleResult.Err() != nil {
 		log.Println(singleResult.Err())
-		c.JSON(http.StatusConflict, "Mongo likely experiecned issue with maintaining connections")
+		c.JSON(http.StatusNotFound, "Game not Found")
 	} else {
 		var BSONData *ChessGame
 		BSONData = new(ChessGame)
@@ -220,18 +202,10 @@ func retrieveGameState(c *gin.Context) {
 }
 
 // deletes record tied to id
-func endGame(c *gin.Context) {
-	handleGameEnd(c, false)
-}
-
-func quitGame(c *gin.Context) {
-	handleGameEnd(c, true)
-}
-
-func handleGameEnd(c *gin.Context, isQuit bool) {
+func handleGameEnd(c *gin.Context) {
 	gameId, err1 := strconv.ParseUint(c.Param("id"), 10, 64)
 	endingPlayer := c.Param("endingPlayer")
-	var endGame *EndGameResponse = new(EndGameResponse)
+	var endGame *QuitGameResponse = new(QuitGameResponse)
 
 	if err1 != nil {
 		endGame.Success = false
@@ -244,12 +218,9 @@ func handleGameEnd(c *gin.Context, isQuit bool) {
 	filter := bson.D{{Key: "id", Value: gameId}}
 	//todo: look into deleteOne documentation, if a game that does not exist is asked to be deleted, that is
 	//an appropriate use case for a 404 response code
-	client = connectToMongoDB()
 	result, err := collection.DeleteOne(context.TODO(), filter)
 	log.Println(result)
 	log.Println("Delete operation finished")
-	client.Disconnect(context.TODO())
-
 	if err != nil {
 		endGame.Success = false
 		endGame.FailureMessage = err.Error()
@@ -259,7 +230,6 @@ func handleGameEnd(c *gin.Context, isQuit bool) {
 
 		endGame.Success = true
 		endGame.EndingPlayer = endingPlayer
-		endGame.IsQuit = !isQuit
 		c.JSON(http.StatusOK, endGame)
 	}
 }
