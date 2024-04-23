@@ -41,7 +41,7 @@ type ChessGame struct {<br />
 }
 
 type EndGameResponse struct {<br />
-	&nbsp;&nbsp;&nbsp;&nbsp;Success        bool   `json: "success"`<br />x
+	&nbsp;&nbsp;&nbsp;&nbsp;Success        bool   `json: "success"`<br />
 	&nbsp;&nbsp;&nbsp;&nbsp;EndingPlayer   string `json: "endingPlayer"`<br />
 	&nbsp;&nbsp;&nbsp;&nbsp;FailureMessage string `json: "failureMessage"`<br />
 }<br />
