@@ -48,5 +48,5 @@ type EndGameResponse struct {<br />
 
 
 
-Compiled on amazon EC2 server using go version 1.20 (despite the commit message on most of the server code)
+Compiled on amazon EC2 server using go version 1.20 
 ![Diagram explaining current traffic patterns for this chess app ](./ChessAppTrafficDiagram.png)
