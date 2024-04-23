@@ -2,7 +2,7 @@ This is the backend server for the Domain challenge written in GOLANG and using 
 
 API Operations
 GET
-  - /new
+  - /new 
     -  creates a new game with an incremental ID (larger than the last ID in the mongoDB collection), and returns the data
       -   returns ChessGame object
     - 200 status on success
