@@ -40,17 +40,17 @@ DELETE
 
 Data Types <br />
 type ChessGame struct {<br />
-	ID          uint64 `bson: "id"`<br />
-	PGN         string `bson: "pgn"`<br />
-	CurrentTurn string `bson: "currentTurn"`<br />
-	IsGameLive  bool   `bson: "isGameLive"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;ID          uint64 `bson: "id"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;PGN         string `bson: "pgn"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;CurrentTurn string `bson: "currentTurn"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;IsGameLive  bool   `bson: "isGameLive"`<br />
 }
 
 type EndGameResponse struct {<br />
-	Success        bool   `json: "success"`<br />
-	IsQuit         bool   `json:"isQuit "`<br />
-	EndingPlayer   string `json: "endingPlayer"`<br />
-	FailureMessage string `json: "failureMessage"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;Success        bool   `json: "success"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;IsQuit         bool   `json:"isQuit "`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;EndingPlayer   string `json: "endingPlayer"`<br />
+	&nbsp;&nbsp;&nbsp;&nbsp;FailureMessage string `json: "failureMessage"`<br />
 }<br />
 
 
